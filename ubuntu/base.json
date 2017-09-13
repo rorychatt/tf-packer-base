@@ -1,0 +1,83 @@
+{
+  "variables": {
+    "client_id": "{{env `ARM_CLIENT_ID`}}",
+    "client_secret": "{{env `ARM_CLIENT_SECRET`}}",
+    "subscription_id": "{{env `ARM_SUBSCRIPTION_ID`}}",
+    "tenant_id": "{{env `ARM_TENANT_ID`}}",
+    "storage_account": "cmsydstorageaccplrs",
+    "location":"Australia East",
+    "capture_container_name": "images",
+    "capture_name_prefix": "Ubuntu1610-Base",
+    "image_publisher": "Canonical",
+    "image_offer": "UbuntuServer",
+    "image_sku": "16.10",
+    "resource_group_name": "cm_syd_prod",
+    "ssh_username":    "packer",
+    "scripts_dir":     "scripts",
+    "config_dir":      "config",
+    "dns_listen_addr": "127.0.0.1"
+  },
+  "builders": [
+    {
+      "type": "azure-arm",
+      "client_id": "{{user `client_id`}}",
+      "client_secret": "{{user `client_secret`}}",
+      "subscription_id": "{{user `subscription_id`}}",
+      "tenant_id": "{{user `tenant_id`}}",
+      "storage_account": "{{user `storage_account`}}",
+      "resource_group_name": "{{user `resource_group_name`}}",
+      "capture_container_name": "{{user `capture_container_name`}}",
+      "capture_name_prefix": "{{user `capture_name_prefix`}}",
+      "image_publisher": "{{user `image_publisher`}}",
+      "image_offer": "{{user `image_offer`}}",
+      "image_sku": "{{user `image_sku`}}",
+      "location":"{{user `location`}}",
+      "ssh_username":    "{{user `ssh_username`}}",
+      "os_type": "linux",
+      "ssh_pty": "true"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "execute_command": "echo {{user `ssh_username`}} | {{ .Vars }} sudo -E -S sh '{{ .Path }}'",
+      "inline": [
+        "mkdir -p /ops/{{user `scripts_dir`}}",
+        "chmod a+w /ops/{{user `scripts_dir`}}",
+        "mkdir -p /ops/{{user `config_dir`}}",
+        "chmod a+w /ops/{{user `config_dir`}}"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "{{user `scripts_dir`}}/.",
+      "destination": "/ops/{{user `scripts_dir`}}"
+    },
+    {
+      "type": "file",
+      "source": "../{{user `config_dir`}}/.",
+      "destination": "/ops/{{user `config_dir`}}"
+    },
+    {
+      "type": "shell",
+      "execute_command": "echo {{user `ssh_username`}} | {{ .Vars }} sudo -E -S sh '{{ .Path }}'",
+      "inline": [
+        "sh /ops/{{user `scripts_dir`}}/dependencies.sh",
+        "sh /ops/{{user `scripts_dir`}}/consul.sh {{user `config_dir`}} {{user `scripts_dir`}}",
+        "sh /ops/{{user `scripts_dir`}}/consul_template.sh {{user `config_dir`}} {{user `scripts_dir`}}",
+        "sh /ops/{{user `scripts_dir`}}/envconsul.sh {{user `config_dir`}}",
+        "sh /ops/{{user `scripts_dir`}}/dnsmasq.sh {{user `dns_listen_addr`}}",
+        "sh /ops/{{user `scripts_dir`}}/cleanup.sh"
+      ]
+    },
+    {
+      "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
+      "inline": [
+        "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
+      ],
+      "inline_shebang": "/bin/sh -x",
+      "type": "shell",
+      "skip_clean": "true"
+    }
+  ]
+}

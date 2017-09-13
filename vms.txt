@@ -1,0 +1,1 @@
+consul = https://circularmstorageacc.blob.core.windows.net/system/Microsoft.Compute/Images/images/Ubuntu1610-Consul-osDisk.a357552b-5e55-4378-ac75-e1c870f4c575.vhd
